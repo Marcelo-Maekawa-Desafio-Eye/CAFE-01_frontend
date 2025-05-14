@@ -1,28 +1,36 @@
-name: Deploy Static Next.js to S3
+name: Deploy Static Cafe Frontend to S3
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18.x'
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build & Export
-        run: npm run build && npm run export
+      - name: Build 
+        run: npm run build
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -33,4 +41,6 @@ jobs:
 
       - name: Sync to S3
         run: |
-          aws s3 sync out/ s3://${{ secrets.S3_BUCKET }} --delete
+          aws s3 sync dist/ s3://${{ secrets.S3_BUCKET }} \
+            --delete \
+            --acl public-read
